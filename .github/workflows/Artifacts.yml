@@ -41,7 +41,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build jixel
-        run: cargo build --release --package jixel --bin jixel --target ${{ matrix.target }}
+        run: cargo build --release --package app --bin jixel --target ${{ matrix.target }}
         env:
           RUSTFLAGS: "-C strip=symbols"
 
@@ -49,17 +49,18 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/${{ matrix.bin }} dist/
+          cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${{ matrix.bin }}"
 
       - name: Prepare artifact (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist
-          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.bin }}" dist/
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${{ matrix.bin }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: jixel-${{ matrix.target }}
           path: dist/*
+          if-no-files-found: error
