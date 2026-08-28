@@ -1,77 +1,69 @@
+```rust
 #![forbid(unsafe_code)]
 
+use std::env;
 use std::fs;
-use std::num::NonZero;
-// use image::imageops::FilterType;
-use image::imageops::FilterType;
-use image::metadata::CicpColorPrimaries;
-use jixel::{ColorEncoding, DecodingSpeed, EncodeConfig, JpegTranscodeConfig, Speed};
 use std::path::Path;
-use std::thread::available_parallelism;
-use std::time::Instant;
+use std::process;
+
+use jixel::{ColorEncoding, EncodeConfig, Speed};
+
+fn print_usage(program: &str) {
+    eprintln!("Usage: {program} <input.png|input.jpg> <output.jxl>");
+}
 
 fn main() {
-    let output = "encoded_lossy_b.jxl";
-    // let display_p3 = fs::read("./assets/Display P3.icc").unwrap();
-    let image = image::open(Path::new("./assets/photo-1626711934535-9749ea30dba8.png")).unwrap();
-    let rgb_img = image.to_rgb8();
-    // let rgba_img = image.to_rgba8();
-    // let gray_img = image.to_luma8();
-    // let src_rgb = rgb_img.as_raw();
-    for i in 0..5 {
-        let instant = Instant::now();
-        let d_bytes = jixel::encode_image(
-            &rgb_img,
-            image.width() as usize,
-            image.height() as usize,
-            // ColorSpace::Rgb,
-            // false,
-            // &FlMeta::srgb(),
-            &EncodeConfig::default()
-                .with_lossless(false)
-                .with_quality(90.)
-                .with_progressive(false)
-                .with_patches(false)
-                .with_speed(Speed::Slow)
-                .with_num_threads(
-                    available_parallelism()
-                        .unwrap_or(NonZero::new(1).unwrap())
-                        .get(),
-                ),
-            // .with_icc_profile(display_p3.to_vec()),
-        )
-        .unwrap();
-        println!("Encoded in {}ms", instant.elapsed().as_millis());
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() != 3 {
+        print_usage(&args[0]);
+        process::exit(2);
     }
-    let width = image.width() as usize;
-    let height = image.height() as usize;
-    let bytes = jixel::encode_image(
-        &rgb_img,
+
+    let input_path = Path::new(&args[1]);
+    let output_path = Path::new(&args[2]);
+
+    // Decode PNG/JPEG/etc. using the image crate.
+    let image = match image::open(input_path) {
+        Ok(image) => image,
+        Err(error) => {
+            eprintln!("Error: failed to open '{}': {error}", input_path.display());
+            process::exit(1);
+        }
+    };
+
+    // Convert the decoded image to 8-bit RGB.
+    let rgb = image.to_rgb8();
+
+    let width = rgb.width() as usize;
+    let height = rgb.height() as usize;
+
+    // Encode the image as JPEG XL.
+    let jxl = match jixel::encode_image(
+        &rgb,
         width,
         height,
         &EncodeConfig::default()
             .with_lossless(false)
-            .with_distance(0.55)
+            .with_quality(90.0)
             .with_speed(Speed::Slow)
             .with_progressive(false)
-            .with_decoding_speed(DecodingSpeed::Slow)
-            .with_patches(false)
             .with_color_encoding(ColorEncoding::srgb()),
-    )
-    .unwrap();
-    std::fs::write(&output, &bytes).expect("failed to write output");
-    // let width = 2000;
-    // let height = 1000;
-    // let img10 = vec![0u8; width * height * 3];
-    // let bytes = jixel::encode_image(
-    //     &img10,
-    //     width,
-    //     height,
-    //     &EncodeConfig::default()
-    //         .with_lossless(false)
-    //         .with_quality(90.)
-    //         .with_color_encoding(ColorEncoding::srgb()),
-    // )
-    // .unwrap();
-    // std::fs::write(&output, &bytes).expect("failed to write output");
+    ) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            eprintln!("Error: failed to encode '{}': {error}", input_path.display());
+            process::exit(1);
+        }
+    };
+
+    // Write the JPEG XL bitstream to the requested output path.
+    if let Err(error) = fs::write(output_path, jxl) {
+        eprintln!(
+            "Error: failed to write '{}': {error}",
+            output_path.display()
+        );
+        process::exit(1);
+    }
 }
+```
