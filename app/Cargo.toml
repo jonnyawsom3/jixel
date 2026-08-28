@@ -7,3 +7,7 @@ edition = "2024"
 jixel = {path = "../", default-features = true, features = ["neon", "avx", "sse"]}
 image = "0.25.10"
 jpegxl-rs = { version = "0.15.0", default-features = false }
+
+[bin]
+name = "jixel"
+path = "src/main.rs"
