@@ -10,4 +10,3 @@ path = "src/main.rs"
 [dependencies]
 jixel = { path = "../", default-features = true, features = ["neon", "avx", "sse"] }
 image = "0.25.10"
-jpegxl-rs = { version = "0.15.0", default-features = false }
