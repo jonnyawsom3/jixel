@@ -1,4 +1,3 @@
-```rust
 #![forbid(unsafe_code)]
 
 use std::env;
@@ -66,4 +65,3 @@ fn main() {
         process::exit(1);
     }
 }
-```
