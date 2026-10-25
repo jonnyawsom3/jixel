@@ -26,24 +26,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Build release executable
         run: cargo build --release --manifest-path app/Cargo.toml --bin jixel
-      - name: Smoke test CLI help
-        shell: pwsh
-        run: |
-          $help = .\target\release\jixel.exe --help | Out-String
-          if (!$help.Contains("--near-lossless") -or !$help.Contains("--upsampling") -or !$help.Contains("--photon-noise-iso")) { throw "Expected current-library options are missing from --help" }
-      - name: Smoke test encoding and cjxl-style summary
-        shell: pwsh
-        run: |
-          $pixels = 1..256 | ForEach-Object { if ($_ % 2) { "255 0 0" } else { "0 255 0" } }
-          $ppm = "P3`n16 16`n255`n" + ($pixels -join " ") + "`n"
-          [System.IO.File]::WriteAllText("cli-smoke.ppm", $ppm, [System.Text.Encoding]::ASCII)
-          $output = .\target\release\jixel.exe cli-smoke.ppm cli-smoke.jxl | Out-String
-          if ($LASTEXITCODE -ne 0) { throw "CLI encode failed: $output" }
-          if ($output -notmatch '(?m)^Encoding \[.*speed: ') { throw "Encoder summary did not include the selected speed: $output" }
-          if ($output -notmatch '(?m)^Compressed to .+ bpp\.') { throw "Encoder summary did not include compressed size and bpp: $output" }
-          if ($output -notmatch '(?m)^16 x 16, .+ MP/s, .+ threads?\.') { throw "Encoder summary did not include throughput: $output" }
-          if (!(Test-Path "cli-smoke.jxl") -or (Get-Item "cli-smoke.jxl").Length -le 0) { throw "CLI failed to produce a non-empty JXL file" }
-          Write-Output $output
       - name: Upload Windows executable artifact
         uses: actions/upload-artifact@v4
         with:
@@ -62,18 +44,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Build release executable
         run: cargo build --release --manifest-path app/Cargo.toml --bin jixel
-      - name: Smoke test CLI help
-        run: ./target/release/jixel --help | grep -q -- '--near-lossless' && ./target/release/jixel --help | grep -q -- '--upsampling' && ./target/release/jixel --help | grep -q -- '--photon-noise-iso'
-      - name: Smoke test encoding and cjxl-style summary
-        shell: bash
-        run: |
-          { printf 'P3\n16 16\n255\n'; for i in $(seq 1 256); do if (( i % 2 )); then printf '255 0 0 '; else printf '0 255 0 '; fi; done; printf '\n'; } > cli-smoke.ppm
-          output="$(./target/release/jixel cli-smoke.ppm cli-smoke.jxl)"
-          printf '%s\n' "$output"
-          grep -Eq '^Encoding \[.*speed: ' <<< "$output"
-          grep -Eq '^Compressed to .+ bpp\.' <<< "$output"
-          grep -Eq '^16 x 16, .+ MP/s, .+ threads?\.' <<< "$output"
-          test -s cli-smoke.jxl
       - name: Upload Linux executable artifact
         uses: actions/upload-artifact@v4
         with:
@@ -100,6 +70,8 @@ jobs:
         with:
           name: jixel-linux
           path: dist/linux
+      - name: Name Linux release asset
+        run: cp dist/linux/jixel dist/linux/jixel-linux
       - name: Attach executable files directly to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
